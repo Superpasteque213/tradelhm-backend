@@ -1,44 +1,46 @@
-import requests
-import json
-import os
+import os, base64, requests
 
-WEKEO_USERNAME = os.getenv("WEKEO_USERNAME")
-WEKEO_PASSWORD = os.getenv("WEKEO_PASSWORD")
+TOKEN_URL = "https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token"
 
-# ✅ Nouveau endpoint Copernicus WEkEO (depuis 2024)
-TOKEN_URL = "https://identity.wekeo.eu/auth/realms/wekeo/protocol/openid-connect/token"
-BROKER_URL = "https://wekeo-broker.apps.wekeo.eu/databroker"
+CLIENT_ID = os.getenv("CDSE_CLIENT_ID", "TON_CLIENT_ID")
+CLIENT_SECRET = os.getenv("CDSE_CLIENT_SECRET", "TON_CLIENT_SECRET")
 
 def get_token():
-    print("🔑 Obtention du token…")
+    # 1) client_secret_post
     data = {
-        "client_id": "wekeo",
-        "username": "enzo.rubagotti@outlook.com",
-        "password": "Rub@gotti2004",
-        "grant_type": "password",
+        "grant_type": "client_credentials",
+        "client_id": CLIENT_ID,
+        "client_secret": CLIENT_SECRET,
     }
-    r = requests.post(TOKEN_URL, data=data)
-    if r.status_code != 200:
-        raise RuntimeError(f"Token error {r.status_code}: {r.text}")
-    token = r.json()["access_token"]
-    print("✅ Token obtenu.")
-    return token
+    r = requests.post(TOKEN_URL, data=data, headers={"Content-Type": "application/x-www-form-urlencoded"})
+    if r.ok:
+        return r.json()["access_token"]
 
+    # 2) client_secret_basic (Authorization: Basic base64(client_id:client_secret))
+    basic = base64.b64encode(f"{CLIENT_ID}:{CLIENT_SECRET}".encode()).decode()
+    r2 = requests.post(
+        TOKEN_URL,
+        data={"grant_type": "client_credentials"},
+        headers={
+            "Authorization": f"Basic {basic}",
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+    )
+    if r2.ok:
+        return r2.json()["access_token"]
 
-def get_datasets(token):
-    print("📦 Récupération de la liste des datasets…")
-    headers = {"Authorization": f"Bearer {token}"}
-    r = requests.get(f"{BROKER_URL}/datasets", headers=headers)
-    if r.status_code != 200:
-        raise RuntimeError(f"Dataset error {r.status_code}: {r.text}")
-    return r.json()
-
+    # Logs d'erreur utiles
+    try:
+        err1 = r.json()
+    except Exception:
+        err1 = r.text
+    try:
+        err2 = r2.json()
+    except Exception:
+        err2 = r2.text
+    raise RuntimeError(f"Token error. POST body auth -> {r.status_code}: {err1} | Basic auth -> {r2.status_code}: {err2}")
 
 if __name__ == "__main__":
+    print("🔑 Obtention du token…")
     token = get_token()
-    datasets = get_datasets(token)
-
-    with open("wekeo_datasets.json", "w") as f:
-        json.dump(datasets, f, indent=2)
-
-    print("🌍 Données sauvegardées dans wekeo_datasets.json")
+    print("✅ Token OK (longueur):", len(token))
