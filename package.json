@@ -1,0 +1,25 @@
+{
+  "name": "tradelhm-backend",
+  "version": "1.0.0",
+  "description": "backend du projet tradehelm",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Superpasteque213/tradelhm-backend.git"
+  },
+  "author": "Pastek Demono",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Superpasteque213/tradelhm-backend/issues"
+  },
+  "homepage": "https://github.com/Superpasteque213/tradelhm-backend#readme",
+  "dependencies": {
+    "express": "^5.1.0",
+    "mysql": "^2.18.1",
+    "sequelize": "^6.37.7",
+    "socket.io": "^4.8.1"
+  }
+}
