@@ -1,0 +1,129 @@
+{
+  "polaire": {
+    "eau": 0.35,
+    "pierre": 0.25,
+    "fer": 0.15,
+    "charbon": 0.10,
+    "cuivre": 0.10,
+    "or": 0.05
+  },
+  "toundra": {
+    "pierre": 0.30,
+    "eau": 0.25,
+    "fer": 0.15,
+    "charbon": 0.15,
+    "cuivre": 0.10,
+    "or": 0.05
+  },
+  "taiga": {
+    "bois": 0.35,
+    "eau": 0.20,
+    "pierre": 0.15,
+    "fer": 0.10,
+    "charbon": 0.10,
+    "nourriture": 0.10
+  },
+  "temperee_humide": {
+    "bois": 0.25,
+    "nourriture": 0.25,
+    "eau": 0.20,
+    "pierre": 0.10,
+    "fer": 0.10,
+    "argile": 0.10
+  },
+  "temperee_seche": {
+    "nourriture": 0.25,
+    "bois": 0.20,
+    "pierre": 0.20,
+    "eau": 0.15,
+    "fer": 0.10,
+    "cuivre": 0.10
+  },
+  "mediterraneenne": {
+    "nourriture": 0.30,
+    "bois": 0.20,
+    "pierre": 0.15,
+    "eau": 0.15,
+    "cuivre": 0.10,
+    "or": 0.10
+  },
+  "desertique": {
+    "pierre": 0.30,
+    "silice": 0.25,
+    "cuivre": 0.15,
+    "or": 0.10,
+    "eau": 0.10,
+    "fer": 0.10
+  },
+  "savane": {
+    "nourriture": 0.30,
+    "bois": 0.20,
+    "pierre": 0.15,
+    "eau": 0.15,
+    "fer": 0.10,
+    "cuivre": 0.10
+  },
+  "tropicale_humide": {
+    "bois": 0.30,
+    "nourriture": 0.25,
+    "eau": 0.25,
+    "pierre": 0.10,
+    "fer": 0.05,
+    "cuivre": 0.05
+  },
+  "equatoriale": {
+    "bois": 0.35,
+    "nourriture": 0.30,
+    "eau": 0.20,
+    "pierre": 0.10,
+    "cuivre": 0.05
+  },
+  "montagneuse": {
+    "pierre": 0.30,
+    "fer": 0.20,
+    "cuivre": 0.15,
+    "or": 0.15,
+    "charbon": 0.10,
+    "eau": 0.10
+  },
+  "cotiere": {
+    "eau": 0.35,
+    "nourriture": 0.25,
+    "pierre": 0.15,
+    "bois": 0.10,
+    "fer": 0.10,
+    "or": 0.05
+  },
+  "ocean_polaire": {
+    "eau": 0.60,
+    "poisson": 0.20,
+    "algue": 0.10,
+    "sel": 0.05,
+    "petrole": 0.03,
+    "minerai_rare": 0.02
+  },
+  "ocean_tempere": {
+    "eau": 0.50,
+    "poisson": 0.30,
+    "algue": 0.10,
+    "sel": 0.05,
+    "petrole": 0.03,
+    "corail": 0.02
+  },
+  "ocean_tropical": {
+    "eau": 0.45,
+    "poisson": 0.25,
+    "corail": 0.15,
+    "algue": 0.08,
+    "perle": 0.04,
+    "sel": 0.03
+  },
+  "ocean_profond": {
+    "eau": 0.55,
+    "minerai_rare": 0.15,
+    "petrole": 0.12,
+    "gaz_naturel": 0.10,
+    "poisson": 0.05,
+    "nodule_metallique": 0.03
+  }
+}

@@ -40,6 +40,8 @@ build/Release
 # Dependency directories
 node_modules/
 jspm_packages/
+game_resources_data/
+map/
 
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/
@@ -139,4 +141,3 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
 # librairies
-node_modules

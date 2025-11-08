@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "api-fetch": "node sentinel_data_fetch.js",
-    "start": "node app.js"
+    "start": "react-scripts start"
   },
   "repository": {
     "type": "git",
@@ -19,6 +19,7 @@
   },
   "homepage": "https://github.com/Superpasteque213/tradelhm-backend#readme",
   "dependencies": {
+    "@fastify/cors": "^11.1.0",
     "express": "^5.1.0",
     "fastify": "^5.6.1",
     "ioredis": "^5.8.2",
