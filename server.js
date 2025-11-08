@@ -134,8 +134,8 @@ fastify.get('/map/metadata', async (request, reply) => {
 // Démarrer le serveur
 const start = async () => {
   try {
-    await fastify.listen({ port: 3000, host: '0.0.0.0' });
-    console.log('Serveur démarré sur http://localhost:3000');
+    await fastify.listen({ port: 5432, host: '0.0.0.0' });
+    console.log('Serveur démarré sur http://localhost:5432');
     console.log(`${Object.keys(gameMapData.tiles).length} hexagones chargés`);
   } catch (err) {
     fastify.log.error(err);
