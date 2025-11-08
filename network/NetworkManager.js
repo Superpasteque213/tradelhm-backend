@@ -21,7 +21,9 @@ export class NetworkManager {
         
       const token = socket.handshake.auth?.token || null;
       console.log("nouvelle connexion",token)
-      let sess = token ? await getSession(token) : null;
+      let sess = token ? await getSessionByToken(token) : null;
+
+      console.log(token,sess)
 
       if (!sess) {
         console.log("création session")
@@ -98,9 +100,9 @@ export class NetworkManager {
   }
 }
 
-async function getSession(sid) {
-  if (!sid) return null;
-  const raw = await redis.get(newId(sid));
+async function getSessionByToken(token) {
+  if (!token) return null;
+  const raw = await redis.get(reddisRequest("session",token));
   return raw ? JSON.parse(raw) : null;
 }
 
@@ -110,4 +112,8 @@ async function setSession(sid, data) {
 
 function newId(prefix) {
   return `${prefix}_${crypto.randomBytes(12).toString('hex')}`;
+}
+
+function reddisRequest(prefix,query){
+    return prefix+"_"+query
 }
