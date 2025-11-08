@@ -75,8 +75,8 @@ app.get("/", (req, reply) => {
         socket.emit("game:create");
       };
 
-      document.getElementById("creer-batiment").onclick = () => {
-        socket.emit("batiment:build", {coords : "15,-30", type:"hdv"});
+      document.getElementById("creer-batiment").onclick = (coords = "5,5") => {
+        socket.emit("batiment:build", {coords , type:"hdv"});
       };
 
       document.getElementById("start-game").onclick = () => {
