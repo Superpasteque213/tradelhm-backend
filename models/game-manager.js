@@ -20,6 +20,8 @@ export class GameManager {
   }
 
   list() {
+
+    console.log('envoi valeurs', [...this.games.values()].map(g => g.snapshot()))
     return [...this.games.values()].map(g => g.snapshot());
   }
 }
