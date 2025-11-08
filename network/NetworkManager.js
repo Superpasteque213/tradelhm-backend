@@ -102,7 +102,14 @@ export class NetworkManager {
 
 async function getSessionByToken(token) {
   if (!token) return null;
-  const raw = await redis.get(reddisRequest("session",token));
+
+  console.log("début recherche session")
+  let query = reddisRequest("session",token)
+  console.log(query)
+
+  const raw = await redis.get(query);
+
+  console.log(raw)
   return raw ? JSON.parse(raw) : null;
 }
 
