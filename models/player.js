@@ -1,11 +1,12 @@
-class Player {
+// player.js (ESM)
+
+export class Player {
   constructor(id, name) {
     this.id = id;
-    this.score = 0;
     this.name = name;
-    this.energy = 0
+    this.score = 0;
+    this.energy = 0;
 
-    // ressources de base
     this.resources = {
       bois: 0,
       eau: 0,
@@ -18,7 +19,6 @@ class Player {
       silice: 0,
       charbon: 0
     };
-
   }
 
   snapshot() {

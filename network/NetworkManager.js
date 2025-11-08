@@ -1,92 +1,113 @@
-//  imports
-const Redis = require('ioredis');
-let GameManager = require('../models/game-manager').GameManager
+// NetworkManager.js (ESM)
 
-const redis = new Redis("redis://bonus.nc:6379"); // client vers serveur REDIS
+import Redis from 'ioredis';
+import { GameManager } from '../models/game-manager.js';
+import { Player } from '../models/player.js';
+import crypto from 'node:crypto';
+
+
+const SESS_TTL = 60 * 60;
+
+const redis = new Redis("redis://bonus.nc:6379");
 
 export class NetworkManager {
-  constructor({ wss, gameManager }) {
-    this.wss = wss;              // instance socket.io ou ws
+  constructor({ io, gameManager }) {
+    this.io = io;
     this.gameManager = gameManager;
   }
 
-
   start() {
-    this.wss.on('connection', async (socket) => {
-       let token = req.token;
-       let sess = token ? await getSession(token) : null;
+    this.io.on('connection', async (socket) => {
+        
+      const token = socket.handshake.auth?.token || null;
+      console.log("nouvelle connexion",token)
+      let sess = token ? await getSession(token) : null;
 
-        if (!sess) {
-            // pas de token ou token inconnu → créer
-            token = newId('session');
-            const userId = newId('user');
-            sess = { userId };
-            await setSession(token, sess);
-        }
+      if (!sess) {
+        console.log("création session")
+        const newToken = newId('session');
+        const userId = newId('user');
+        sess = { userId };
+        await setSession(newToken, sess);
+        socket.handshake.auth.token = newToken;
+        console.log("session créée",socket.handshake.auth.token)
+        socket.emit("session:token", newToken);
+      }
 
-        socket.token = token;
-        socket.userId = sess.userId;
+      socket.data.userId = sess.userId;
 
-        socket.join('player:' + socket.userId) // on lie le socket à un userId qui deviendra le playerId plus tard c'est goatesque
+      socket.join('player:' + socket.data.userId);
 
-
-      socket.on('game:create', (data) => {
-        const game = this.gameManager.createGame(userId);
-        this.broadcastLobby();
+      socket.on('game:create', () => {
+        console.log('création de game')
+        this.gameManager.createGame();
+        this.broadcastGamesToLobby();
       });
 
       socket.on('game:join', ({ gameId, name }) => {
-
-        let player = new Player(socket.userId,name)
-
-        let game = this.gameManager.get(gameId)
+        const player = new Player(socket.data.userId, name);
+        const game = this.gameManager.get(gameId);
         const ok = game.addPlayer(player);
-
         if (!ok) return;
         
+        console.log(player.name + "a rejoint la game ! joueurs connectés : " +game.players.size)
         socket.join(gameId);
-
+        socket.data.gameId = gameId;
         this.broadcastGame(gameId);
-        this.broadcastLobby();
-
+        this.broadcastGamesToLobby();
       });
 
-      socket.on('disconnect', () => {
-        this.broadcastLobby();
-      });
+      socket.on('batiment:build',({coords,type}) => {
+        // un joueur essaie de créer un batiment en spécifiant
+        let gameId = socket.data.gameId;
+        let playerId = socket.data.userId;
+
+        console.log(coords,type,gameId,playerId)
+        let game = this.gameManager.get(gameId);
+        game.addToQueue(game.tick,()=>game.peutConstruire(playerId,coords,type))
+        console.log("la fonction est demandée au tick ",game.tick)
+        
+      })
+
+      socket.on('game:start', ()=>{
+        let gameId = socket.data.gameId
+        let game = this.gameManager.get(gameId)
+
+        game.start()
+      })
+
+      socket.on('disconnect', () => {});
     });
   }
 
-  // callbacks déclenchées par Game via GameManager si besoin
   notifyGameEvent(gameId, payload) {
-    this.wss.to(gameId).emit('game:event', payload);
+    this.io.to(gameId).emit('game:event', payload);
   }
 
   broadcastGame(gameId) {
-    let game = this.gameManager.get(gameId);
-    snapshot
-    this.wss.to(gameId).emit('game:update', snapshot);
+    const game = this.gameManager.get(gameId);
+    const snapshot = game?.toPublic ?? game;
+    if (!snapshot) return;
+
+    let retour = {players : game.pl, nb_players : game.players.size}
+    this.io.to(gameId).emit('game:update', retour);
   }
 
-  broadcastLobby() {
-    this.wss.emit('games:list', this.gameManager.list());
+  broadcastGamesToLobby() {
+    this.io.emit('games:list', this.gameManager.list());
   }
 }
 
-// ------------------------ UTILS -----------------------------------
 async function getSession(sid) {
-    // récupère la session sur redis à partir d'un session id
   if (!sid) return null;
-  const raw = await redis.get(redisSessionKey(sid));
+  const raw = await redis.get(newId(sid));
   return raw ? JSON.parse(raw) : null;
 }
 
 async function setSession(sid, data) {
-    // crée une session sur redis à partir d'un id 
-  await redis.setex(redisSessionKey(sid), SESS_TTL, JSON.stringify(data));
+  await redis.setex(newId(sid), SESS_TTL, JSON.stringify(data));
 }
 
 function newId(prefix) {
-    // crée un nouvel id qui est juste une chaine aléatoire précédée d'un prefix pour identifier le type d'id
-     return `${prefix}_${crypto.randomBytes(12).toString('hex')}`; 
-    }
+  return `${prefix}_${crypto.randomBytes(12).toString('hex')}`;
+}
