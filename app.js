@@ -1,39 +1,24 @@
-const Fastify = require('fastify');
-const { Server: WSServer } = require('ws');
-const Redis = require('ioredis');
-const crypto = require('node:crypto');
-const NetworkManager = require('./network/NetworkManager')
+// app.js (ESM)
+import Fastify from 'fastify';
+import { Server as IOServer } from 'socket.io';
+import Redis from 'ioredis';           // si tu l'utilises
+import crypto from 'node:crypto';      // si tu l'utilises
+import { NetworkManager } from './network/NetworkManager.js';
+import { GameManager }  from './models/game-manager.js';
 
-const app = Fastify(); // serveur API
-const wss = new WSServer({ noServer: true }); // serveur WEBSOCKET
-const redis = new Redis("redis://bonus.nc:6379"); // client vers serveur REDIS
+const app = Fastify();
 
+await app.listen({ port: 5742, host: '0.0.0.0' });
 
-const SESS_TTL = 60 * 60; // 1h
+const io = new IOServer(app.server, {
+  cors: { origin: true, methods: ['GET','POST'] }
+});
 
-// Manager de parties
+// domaine
 const manager = new GameManager();
 
+// réseau
+const networkManager = new NetworkManager({ io, gameManager: manager });
+networkManager.start();
 
-// Démarre HTTP et accroche l'upgrade WS
-(async () => {
-  await app.listen({ port: 5742, host: '0.0.0.0' });
-  const server = app.server;
-  server.on('upgrade', async (req, socket, head) => {
-    try {
-      const url = new URL(req.url, 'http://localhost');
-      req.token = url.searchParams.get('token') || null;
-      wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req));
-    } catch { socket.destroy(); }
-  });
-  console.log('http://localhost:5742');
-})();
-
-
-//------------------------------------------------ LOGIQUE WEBSOCKETS -------------------------------------------------
-
-const networkManager = new NetworkManager(wss,manager)
-networkManager.start()
-
-// ------------------------------------ ROUTES API ------------------------------------------------
-
+console.log('http://localhost:5742');
