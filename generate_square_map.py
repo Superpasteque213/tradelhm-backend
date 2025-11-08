@@ -5,40 +5,34 @@ import sys
 from pathlib import Path
 from glob import glob
 
-def latlon_to_hex(lat, lon, size):
-    q = (lon * np.sqrt(3)/3 - lat / 3) / size
-    r = (2 * lat / 3) / size
-    return hex_round(q, r)
+def latlon_to_square(lat, lon, size):
+    """
+    Convertit des coordonnées lat/lon en coordonnées de grille carrée
+    
+    Args:
+        lat: Latitude
+        lon: Longitude
+        size: Taille de la cellule en degrés
+    
+    Returns:
+        str: Coordonnées de la cellule "x,y"
+    """
+    x = int(np.floor(lon / size))
+    y = int(np.floor(lat / size))
+    return f"{x},{y}"
 
-def hex_round(q, r):
-    s = -q - r
-    rq = round(q)
-    rr = round(r)
-    rs = round(s)
-    
-    q_diff = abs(rq - q)
-    r_diff = abs(rr - r)
-    s_diff = abs(rs - s)
-    
-    if q_diff > r_diff and q_diff > s_diff:
-        rq = -rr - rs
-    elif r_diff > s_diff:
-        rr = -rq - rs
-    
-    return f"{int(rq)},{int(rr)}"
-
-def process_single_file(file_path, hex_size, variables=None, time_aggregation='first'):
+def process_single_file(file_path, cell_size, variables=None, time_aggregation='first'):
     """
     Traite un seul fichier NetCDF
     
     Args:
         file_path: Chemin vers le fichier .nc
-        hex_size: Taille des hexagones en degrés
+        cell_size: Taille des cellules en degrés
         variables: Liste des variables à extraire (None = toutes)
         time_aggregation: 'first', 'mean', 'all'
     
     Returns:
-        dict: {variable: {hex_coord: [values]}}
+        dict: {variable: {square_coord: [values]}}
     """
     print(f"\n📂 Lecture de {Path(file_path).name}...")
     ds = xr.open_dataset(file_path)
@@ -102,14 +96,14 @@ def process_single_file(file_path, hex_size, variables=None, time_aggregation='f
                 for j in range(len(lons)):
                     lat = float(lats[i])
                     lon = float(lons[j])
-                    hex_coord = latlon_to_hex(lat, lon, hex_size)
+                    square_coord = latlon_to_square(lat, lon, cell_size)
                     
-                    if hex_coord not in file_data[var]:
-                        file_data[var][hex_coord] = []
+                    if square_coord not in file_data[var]:
+                        file_data[var][square_coord] = []
                     
                     value = data[i, j]
                     if not np.isnan(value):
-                        file_data[var][hex_coord].append({
+                        file_data[var][square_coord].append({
                             'value': float(value),
                             'lat': lat,
                             'lon': lon
@@ -126,14 +120,14 @@ def process_single_file(file_path, hex_size, variables=None, time_aggregation='f
                     for j in range(len(lons)):
                         lat = float(lats[i])
                         lon = float(lons[j])
-                        hex_coord = latlon_to_hex(lat, lon, hex_size)
+                        square_coord = latlon_to_square(lat, lon, cell_size)
                         
-                        if hex_coord not in file_data[var]:
-                            file_data[var][hex_coord] = []
+                        if square_coord not in file_data[var]:
+                            file_data[var][square_coord] = []
                         
                         value = data[t, i, j]
                         if not np.isnan(value):
-                            file_data[var][hex_coord].append({
+                            file_data[var][square_coord].append({
                                 'value': float(value),
                                 'lat': lat,
                                 'lon': lon,
@@ -148,14 +142,14 @@ def merge_file_data(all_files_data):
     Fusionne les données de plusieurs fichiers
     
     Args:
-        all_files_data: Liste de dict {variable: {hex_coord: [values]}}
+        all_files_data: Liste de dict {variable: {square_coord: [values]}}
     
     Returns:
-        dict: hex_grid fusionné
+        dict: square_grid fusionné
     """
     print("\n🔀 Fusion des données de tous les fichiers...")
     
-    hex_grid = {}
+    square_grid = {}
     all_variables = set()
     
     # Collecter toutes les variables
@@ -164,26 +158,26 @@ def merge_file_data(all_files_data):
     
     print(f"   Variables totales: {sorted(all_variables)}")
     
-    # Fusionner les données par hexagone
+    # Fusionner les données par cellule
     for file_data in all_files_data:
-        for var, hex_data in file_data.items():
-            for hex_coord, values in hex_data.items():
-                if hex_coord not in hex_grid:
-                    hex_grid[hex_coord] = {
+        for var, square_data in file_data.items():
+            for square_coord, values in square_data.items():
+                if square_coord not in square_grid:
+                    square_grid[square_coord] = {
                         'count': 0,
                         'lat': 0,
                         'lon': 0
                     }
                 
-                if var not in hex_grid[hex_coord]:
-                    hex_grid[hex_coord][var] = []
+                if var not in square_grid[square_coord]:
+                    square_grid[square_coord][var] = []
                 
-                hex_grid[hex_coord][var].extend(values)
+                square_grid[square_coord][var].extend(values)
     
     # Calculer les moyennes
-    print("   📐 Calcul des statistiques...")
-    for coord in list(hex_grid.keys()):
-        tile = hex_grid[coord]
+    print("   📈 Calcul des statistiques...")
+    for coord in list(square_grid.keys()):
+        tile = square_grid[coord]
         
         # Calculer lat/lon moyen
         all_lats = []
@@ -200,7 +194,7 @@ def merge_file_data(all_files_data):
             tile['lon'] = float(np.mean(all_lons))
             tile['count'] = len(all_lats)
         else:
-            del hex_grid[coord]
+            del square_grid[coord]
             continue
         
         # Calculer les statistiques pour chaque variable
@@ -218,21 +212,21 @@ def merge_file_data(all_files_data):
                 else:
                     tile[var] = None
     
-    return hex_grid
+    return square_grid
 
-def process_multiple_netcdf(input_pattern, output_file, hex_size=1.0, variables=None, time_aggregation='first'):
+def process_multiple_netcdf(input_pattern, output_file, cell_size=1.0, variables=None, time_aggregation='first'):
     """
-    Traite plusieurs fichiers NetCDF et les fusionne en une grille hexagonale
+    Traite plusieurs fichiers NetCDF et les fusionne en une grille carrée
     
     Args:
         input_pattern: Pattern glob ou liste de fichiers (ex: "*.nc" ou "file1.nc,file2.nc")
         output_file: Chemin vers le fichier JSON de sortie
-        hex_size: Taille des hexagones en degrés
+        cell_size: Taille des cellules en degrés
         variables: Liste des variables à extraire (None = toutes)
         time_aggregation: 'first', 'mean', 'all'
     """
     print("=" * 70)
-    print("🌍 GÉNÉRATEUR DE CARTE HEXAGONALE MULTI-FICHIERS NetCDF")
+    print("🗺️  GÉNÉRATEUR DE CARTE EN GRILLE CARRÉE MULTI-FICHIERS NetCDF")
     print("=" * 70)
     
     # Résoudre les fichiers
@@ -254,7 +248,7 @@ def process_multiple_netcdf(input_pattern, output_file, hex_size=1.0, variables=
     all_files_data = []
     for file_path in files:
         try:
-            file_data = process_single_file(file_path, hex_size, variables, time_aggregation)
+            file_data = process_single_file(file_path, cell_size, variables, time_aggregation)
             if file_data:
                 all_files_data.append(file_data)
         except Exception as e:
@@ -265,18 +259,19 @@ def process_multiple_netcdf(input_pattern, output_file, hex_size=1.0, variables=
         raise ValueError("❌ Aucun fichier n'a pu être traité avec succès")
     
     # Fusionner toutes les données
-    hex_grid = merge_file_data(all_files_data)
+    square_grid = merge_file_data(all_files_data)
     
     # Créer la structure de sortie
     output_data = {
         'metadata': {
             'source_files': [str(Path(f).name) for f in files],
-            'hex_size': hex_size,
-            'tile_count': len(hex_grid),
+            'cell_size': cell_size,
+            'tile_count': len(square_grid),
             'time_aggregation': time_aggregation,
-            'variables': sorted(set(var for file_data in all_files_data for var in file_data.keys()))
+            'variables': sorted(set(var for file_data in all_files_data for var in file_data.keys())),
+            'grid_type': 'square'
         },
-        'tiles': hex_grid
+        'tiles': square_grid
     }
     
     # Sauvegarder en JSON
@@ -289,7 +284,7 @@ def process_multiple_netcdf(input_pattern, output_file, hex_size=1.0, variables=
     print("\n" + "=" * 70)
     print("✅ TERMINÉ !")
     print("=" * 70)
-    print(f"🎯 Tuiles générées: {len(hex_grid)}")
+    print(f"🎯 Cellules générées: {len(square_grid)}")
     print(f"📦 Taille du fichier: {file_size:.2f} MB")
     print(f"📊 Variables: {', '.join(output_data['metadata']['variables'])}")
     print("=" * 70)
@@ -299,7 +294,7 @@ def process_multiple_netcdf(input_pattern, output_file, hex_size=1.0, variables=
 if __name__ == '__main__':
     if len(sys.argv) < 3:
         print("""
-Usage: python generate_hex_map.py <input_pattern> <output.json> [hex_size] [variables] [time_agg]
+Usage: python generate_square_map.py <input_pattern> <output.json> [cell_size] [variables] [time_agg]
 
 Arguments:
   input_pattern : Pattern glob ou liste de fichiers séparés par des virgules
@@ -309,7 +304,7 @@ Arguments:
   
   output.json   : Fichier de sortie JSON
   
-  hex_size      : Taille des hexagones en degrés (défaut: 1.0)
+  cell_size     : Taille des cellules carrées en degrés (défaut: 1.0)
   
   variables     : Variables à extraire, séparées par des virgules
                   (défaut: toutes les variables)
@@ -319,29 +314,32 @@ Arguments:
 
 Exemples:
   # Tous les fichiers .nc du dossier
-  python generate_hex_map.py "data/*.nc" map.json 0.5
+  python generate_square_map.py "data/*.nc" map.json 0.5
   
   # Fichiers spécifiques
-  python generate_hex_map.py "file1.nc,file2.nc" map.json 0.5 tp,ssr mean
+  python generate_square_map.py "file1.nc,file2.nc" map.json 0.5 tp,ssr mean
   
   # Avec pattern et variables spécifiques
-  python generate_hex_map.py "copernicus_*.nc" map.json 1.0 temperature,precipitation first
+  python generate_square_map.py "copernicus_*.nc" map.json 1.0 temperature,precipitation first
+  
+  # Exemple pour votre projet
+  python generate_square_map.py "game_resources_data/*.nc" game_map.json 0.5
         """)
         sys.exit(1)
     
     input_pattern = sys.argv[1]
     output_file = sys.argv[2]
-    hex_size = float(sys.argv[3]) if len(sys.argv) > 3 else 1.0
+    cell_size = float(sys.argv[3]) if len(sys.argv) > 3 else 1.0
     variables = sys.argv[4].split(',') if len(sys.argv) > 4 else None
     time_agg = sys.argv[5] if len(sys.argv) > 5 else 'first'
     
     try:
-        process_multiple_netcdf(input_pattern, output_file, hex_size, variables, time_agg)
+        process_multiple_netcdf(input_pattern, output_file, cell_size, variables, time_agg)
     except Exception as e:
         print(f"\n❌ ERREUR: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)
 
-
-"""python generate_hex_map.py "game_resources_data/*.nc" game_map.json 2"""
+        
+"""python generate_square_map.py "game_resources_data/*.nc" game_map.json 0.5"""
