@@ -30,6 +30,8 @@ app.get("/", (req, reply) => {
       let socket = null;
       let token = localStorage.getItem("token");
 
+      console.log(token)
+
       socket = io("http://${process.env.host}:${process.env.port}", { auth: { token } });
 
       socket.on("connect", () => {
