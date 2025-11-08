@@ -115,7 +115,7 @@ async function getSessionByToken(token) {
 }
 
 async function setSession(sid, data) {
-  await redis.setex(newId(sid), SESS_TTL, JSON.stringify(data));
+  await redis.setex(sid, SESS_TTL, JSON.stringify(data));
 }
 
 function newId(prefix) {
