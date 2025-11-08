@@ -5,6 +5,7 @@ import Redis from 'ioredis';           // si tu l'utilises
 import crypto from 'node:crypto';      // si tu l'utilises
 import { NetworkManager } from './network/NetworkManager.js';
 import { GameManager }  from './models/game-manager.js';
+import 'dotenv/config';
 
 const app = Fastify();
 
@@ -87,7 +88,7 @@ app.get("/", (req, reply) => {
 });
 
 
-await app.listen({ port: 5742, host: '127.0.0.1' });
+app.listen({ port: process.env.port, host: process.env.sortie });
 
 const io = new IOServer(app.server, {
   cors: { origin: true, methods: ['GET','POST'] }
@@ -103,4 +104,4 @@ networkManager.start();
 
 
 
-console.log('http://localhost:5742');
+console.log('http://'+process.env.host+":"+process.env.port);
