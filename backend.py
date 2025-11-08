@@ -8,27 +8,21 @@ import os
 app = Flask(__name__)
 CORS(app)
 
-def latlon_to_hex(lat, lon, size):
-    q = (lon * np.sqrt(3)/3 - lat / 3) / size
-    r = (2 * lat / 3) / size
-    return hex_round(q, r)
-
-def hex_round(q, r):
-    s = -q - r
-    rq = round(q)
-    rr = round(r)
-    rs = round(s)
+def latlon_to_square(lat, lon, size):
+    """
+    Convertit des coordonnées lat/lon en coordonnées de grille carrée
     
-    q_diff = abs(rq - q)
-    r_diff = abs(rr - r)
-    s_diff = abs(rs - s)
+    Args:
+        lat: Latitude
+        lon: Longitude
+        size: Taille de la cellule en degrés
     
-    if q_diff > r_diff and q_diff > s_diff:
-        rq = -rr - rs
-    elif r_diff > s_diff:
-        rr = -rq - rs
-    
-    return f"{int(rq)},{int(rr)}"
+    Returns:
+        str: Coordonnées de la cellule "x,y"
+    """
+    x = int(np.floor(lon / size))
+    y = int(np.floor(lat / size))
+    return f"{x},{y}"
 
 @app.route('/process', methods=['POST'])
 def process_netcdf():
@@ -36,7 +30,7 @@ def process_netcdf():
         return jsonify({'error': 'No file provided'}), 400
     
     file = request.files['file']
-    hex_size = float(request.form.get('hex_size', 1.0))
+    cell_size = float(request.form.get('cell_size', 1.0))
     variables = request.form.get('variables', '').split(',')
     
     with tempfile.NamedTemporaryFile(delete=False, suffix='.nc') as tmp_file:
@@ -58,7 +52,7 @@ def process_netcdf():
         if not variables or variables == ['']:
             variables = [var for var in ds.data_vars if len(ds[var].dims) >= 2]
         
-        hex_grid = {}
+        square_grid = {}
         lats = ds[lat_var].values
         lons = ds[lon_var].values
         
@@ -74,29 +68,30 @@ def process_netcdf():
                 for j in range(len(lons)):
                     lat = float(lats[i])
                     lon = float(lons[j])
-                    hex_coord = latlon_to_hex(lat, lon, hex_size)
+                    square_coord = latlon_to_square(lat, lon, cell_size)
                     
-                    if hex_coord not in hex_grid:
-                        hex_grid[hex_coord] = {
+                    if square_coord not in square_grid:
+                        square_grid[square_coord] = {
                             'count': 0,
                             'lat': 0,
                             'lon': 0
                         }
                     
-                    if var not in hex_grid[hex_coord]:
-                        hex_grid[hex_coord][var] = []
+                    if var not in square_grid[square_coord]:
+                        square_grid[square_coord][var] = []
                     
                     value = data[i, j]
                     if not np.isnan(value):
-                        hex_grid[hex_coord][var].append(float(value))
-                        hex_grid[hex_coord]['count'] += 1
-                        hex_grid[hex_coord]['lat'] += lat
-                        hex_grid[hex_coord]['lon'] += lon
+                        square_grid[square_coord][var].append(float(value))
+                        square_grid[square_coord]['count'] += 1
+                        square_grid[square_coord]['lat'] += lat
+                        square_grid[square_coord]['lon'] += lon
         
-        for coord in list(hex_grid.keys()):
-            tile = hex_grid[coord]
+        # Calculer les moyennes
+        for coord in list(square_grid.keys()):
+            tile = square_grid[coord]
             if tile['count'] == 0:
-                del hex_grid[coord]
+                del square_grid[coord]
                 continue
                 
             tile['lat'] /= tile['count']
@@ -105,16 +100,23 @@ def process_netcdf():
             for var in variables:
                 if var in tile and isinstance(tile[var], list):
                     if len(tile[var]) > 0:
-                        tile[var] = float(np.mean(tile[var]))
+                        values = tile[var]
+                        tile[var] = {
+                            'mean': float(np.mean(values)),
+                            'min': float(np.min(values)),
+                            'max': float(np.max(values)),
+                            'std': float(np.std(values))
+                        }
         
         ds.close()
         
         return jsonify({
-            'tiles': hex_grid,
+            'tiles': square_grid,
             'variables': variables,
             'metadata': {
-                'tile_count': len(hex_grid),
-                'hex_size': hex_size
+                'tile_count': len(square_grid),
+                'cell_size': cell_size,
+                'grid_type': 'square'
             }
         })
     
@@ -137,10 +139,22 @@ def get_nc_info():
     
     try:
         ds = xr.open_dataset(tmp_path)
+        
+        # Obtenir des infos détaillées sur les variables
+        variables_info = {}
+        for var in ds.data_vars:
+            variables_info[var] = {
+                'dimensions': list(ds[var].dims),
+                'shape': list(ds[var].shape),
+                'dtype': str(ds[var].dtype),
+                'attributes': dict(ds[var].attrs) if hasattr(ds[var], 'attrs') else {}
+            }
+        
         info = {
             'dimensions': dict(ds.dims),
             'coordinates': list(ds.coords.keys()),
             'variables': list(ds.data_vars.keys()),
+            'variables_info': variables_info,
             'attributes': dict(ds.attrs)
         }
         ds.close()
@@ -150,6 +164,35 @@ def get_nc_info():
     finally:
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
+
+@app.route('/convert-to-square', methods=['POST'])
+def convert_to_square():
+    """
+    Endpoint pour convertir directement des coordonnées lat/lon en grille carrée
+    """
+    data = request.get_json()
+    
+    if not data or 'lat' not in data or 'lon' not in data:
+        return jsonify({'error': 'lat and lon required'}), 400
+    
+    lat = float(data['lat'])
+    lon = float(data['lon'])
+    cell_size = float(data.get('cell_size', 1.0))
+    
+    square_coord = latlon_to_square(lat, lon, cell_size)
+    x, y = map(int, square_coord.split(','))
+    
+    return jsonify({
+        'square_coord': square_coord,
+        'x': x,
+        'y': y,
+        'cell_size': cell_size,
+        'original': {'lat': lat, 'lon': lon}
+    })
+
+@app.route('/health', methods=['GET'])
+def health():
+    return jsonify({'status': 'ok', 'grid_type': 'square'})
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

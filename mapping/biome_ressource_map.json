@@ -94,11 +94,36 @@
     "fer": 0.10,
     "or": 0.05
   },
-  "oceanique": {
+  "ocean_polaire": {
+    "eau": 0.60,
+    "poisson": 0.20,
+    "algue": 0.10,
+    "sel": 0.05,
+    "petrole": 0.03,
+    "minerai_rare": 0.02
+  },
+  "ocean_tempere": {
     "eau": 0.50,
-    "nourriture": 0.30,
-    "pierre": 0.10,
-    "fer": 0.05,
-    "cuivre": 0.05
+    "poisson": 0.30,
+    "algue": 0.10,
+    "sel": 0.05,
+    "petrole": 0.03,
+    "corail": 0.02
+  },
+  "ocean_tropical": {
+    "eau": 0.45,
+    "poisson": 0.25,
+    "corail": 0.15,
+    "algue": 0.08,
+    "perle": 0.04,
+    "sel": 0.03
+  },
+  "ocean_profond": {
+    "eau": 0.55,
+    "minerai_rare": 0.15,
+    "petrole": 0.12,
+    "gaz_naturel": 0.10,
+    "poisson": 0.05,
+    "nodule_metallique": 0.03
   }
 }

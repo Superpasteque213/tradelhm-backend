@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Carte en Grille Carrée Interactive</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #header {
+      background: rgba(255, 255, 255, 0.95);
+      padding: 15px 30px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    #header h1 {
+      color: #667eea;
+      font-size: 24px;
+    }
+
+    #stats {
+      display: flex;
+      gap: 20px;
+      font-size: 14px;
+      color: #666;
+    }
+
+    #container {
+      flex: 1;
+      display: flex;
+      padding: 20px;
+      gap: 20px;
+    }
+
+    #map {
+      flex: 1;
+      border-radius: 10px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      position: relative;
+      z-index: 1;
+    }
+
+    #sidebar {
+      width: 350px;
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      padding: 25px;
+      overflow-y: auto;
+    }
+
+    #sidebar h2 {
+      color: #667eea;
+      margin-bottom: 20px;
+      font-size: 20px;
+    }
+
+    .info-section {
+      margin-bottom: 25px;
+    }
+
+    .info-section h3 {
+      color: #764ba2;
+      font-size: 16px;
+      margin-bottom: 10px;
+      border-bottom: 2px solid #667eea;
+      padding-bottom: 5px;
+    }
+
+    .info-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    .info-item:last-child {
+      border-bottom: none;
+    }
+
+    .info-label {
+      font-weight: 600;
+      color: #555;
+    }
+
+    .info-value {
+      color: #888;
+    }
+
+    .biome-badge {
+      display: inline-block;
+      padding: 5px 15px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .resource-bar {
+      margin: 10px 0;
+    }
+
+    .resource-name {
+      font-weight: 600;
+      color: #555;
+      margin-bottom: 5px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .resource-progress {
+      background: #eee;
+      height: 20px;
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .resource-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+      transition: width 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 50px 20px;
+      color: #999;
+    }
+
+    .empty-state svg {
+      width: 80px;
+      height: 80px;
+      margin-bottom: 20px;
+      opacity: 0.3;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 20px;
+      color: #667eea;
+    }
+
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #667eea;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 10px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .leaflet-popup-content-wrapper {
+      border-radius: 8px;
+      box-shadow: 0 3px 14px rgba(0,0,0,0.4);
+    }
+
+    .leaflet-popup-content {
+      margin: 10px;
+      font-size: 13px;
+    }
+
+    .weather-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .weather-item {
+      background: #f8f9fa;
+      padding: 10px;
+      border-radius: 5px;
+      text-align: center;
+    }
+
+    .weather-item .label {
+      font-size: 11px;
+      color: #666;
+      margin-bottom: 5px;
+    }
+
+    .weather-item .value {
+      font-size: 16px;
+      font-weight: bold;
+      color: #667eea;
+    }
+  </style>
+</head>
+<body>
+  <div id="header">
+    <h1>🗺️ Carte en Grille Carrée Interactive</h1>
+    <div id="stats">
+      <span>🔲 Grille mondiale</span>
+      <span>🎯 Survolez une cellule pour voir ses détails</span>
+    </div>
+  </div>
+
+  <div id="container">
+    <div id="map"></div>
+    <div id="sidebar">
+      <h2>Détails de la Cellule</h2>
+      <div id="cellDetails">
+        <div class="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+          </svg>
+          <p>Survolez une cellule sur la carte pour voir ses informations</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const API_URL = 'http://localhost:3000';
+    const CELL_SIZE = 1.0; // Doit correspondre à la taille utilisée dans le Python
+    
+    let map;
+    let squaresLayer;
+    let selectedSquare = null;
+    let debounceTimer = null;
+    let currentZoom = 2;
+    let gridCache = null; // Cache de la grille
+    let visibleFeatures = new Set(); // Features visibles
+    let lastLoadedData = null; // Cache de la dernière requête
+
+    // Couleurs des biomes
+    const biomeColors = {
+      'polaire': '#a8dadc',
+      'toundra': '#8ecae6',
+      'taiga': '#219ebc',
+      'temperee_humide': '#98c1d9',
+      'temperee_seche': '#e9d8a6',
+      'mediterraneenne': '#ee9b00',
+      'desertique': '#ca6702',
+      'savane': '#bb9457',
+      'tropicale_humide': '#52b788',
+      'equatoriale': '#2d6a4f',
+      'montagneuse': '#8d99ae',
+      'cotiere': '#457b9d',
+      'oceanique': '#1d3557'
+    };
+
+    // Générer les coordonnées d'un carré avec correction Mercator (optimisé)
+    function squareCoordinates(lon, lat, width, height) {
+      return [
+        [lon, lat],
+        [lon + width, lat],
+        [lon + width, lat + height],
+        [lon, lat + height],
+        [lon, lat]
+      ];
+    }
+
+    // Générer la grille carrée mondiale (avec cache)
+    function generateWorldSquareGrid(size = 1) {
+      if (gridCache) return gridCache;
+      
+      const features = [];
+      
+      const startLat = -85;
+      const endLat = 85;
+      const startLon = -180;
+      const endLon = 180;
+      
+      let r = 0;
+      let lat = startLat;
+      
+      while (lat < endLat) {
+        let q = 0;
+        
+        const latRad = (lat * Math.PI) / 180;
+        const latHeight = size * Math.cos(latRad);
+        
+        for (let lon = startLon; lon < endLon; lon += size) {
+          const coords = squareCoordinates(lon, lat, size, latHeight);
+          const squareId = `${q},${r}`;
+          
+          features.push({
+            type: "Feature",
+            properties: { id: squareId, q, r, lat, lon },
+            geometry: {
+              type: "Polygon",
+              coordinates: [coords]
+            }
+          });
+          
+          q++;
+        }
+        
+        lat += latHeight;
+        r++;
+      }
+      
+      gridCache = {
+        type: "FeatureCollection",
+        features
+      };
+      
+      return gridCache;
+    }
+
+    // Filtrer les features visibles dans le viewport
+    function getVisibleFeatures(bounds, zoom) {
+      if (!gridCache) return [];
+      
+      const south = bounds.getSouth();
+      const north = bounds.getNorth();
+      const west = bounds.getWest();
+      const east = bounds.getEast();
+      
+      // Limiter le nombre de features selon le zoom
+      const maxFeatures = zoom < 3 ? 2000 : zoom < 5 ? 5000 : 10000;
+      const step = zoom < 3 ? 3 : zoom < 5 ? 2 : 1;
+      
+      const visible = [];
+      let count = 0;
+      
+      for (let i = 0; i < gridCache.features.length; i += step) {
+        const feature = gridCache.features[i];
+        const { lat, lon } = feature.properties;
+        
+        if (lat >= south && lat <= north && lon >= west && lon <= east) {
+          visible.push(feature);
+          count++;
+          if (count >= maxFeatures) break;
+        }
+      }
+      
+      return visible;
+    }
+
+    // Mettre à jour la grille visible
+    function updateVisibleGrid() {
+      const bounds = map.getBounds();
+      const zoom = map.getZoom();
+      
+      // Ne mettre à jour que si le zoom a changé significativement
+      if (Math.abs(zoom - currentZoom) < 0.5 && squaresLayer) return;
+      
+      currentZoom = zoom;
+      
+      // Retirer l'ancienne couche
+      if (squaresLayer) {
+        map.removeLayer(squaresLayer);
+      }
+      
+      // Obtenir les features visibles
+      const visibleData = {
+        type: "FeatureCollection",
+        features: getVisibleFeatures(bounds, zoom)
+      };
+      
+      console.log(`Affichage de ${visibleData.features.length} cellules (zoom: ${zoom.toFixed(1)})`);
+      
+      // Créer la nouvelle couche
+      squaresLayer = L.geoJSON(visibleData, {
+        style: function(feature) {
+          return {
+            fillColor: '#667eea',
+            fillOpacity: 0.1,
+            color: '#ffffff',
+            weight: 0.5,
+            opacity: 0.3
+          };
+        },
+        onEachFeature: attachFeatureHandlers
+      }).addTo(map);
+    }
+
+    // Attacher les handlers d'événements (fonction séparée pour réutilisation)
+    function attachFeatureHandlers(feature, layer) {
+      const { q, r } = feature.properties;
+
+      layer.on('mouseover', function(e) {
+        if (currentZoom < 3) return; // Désactiver le survol sur zoom faible
+        
+        this.setStyle({ 
+          fillOpacity: 0.4, 
+          weight: 1.5,
+          opacity: 0.8
+        });
+
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          loadCellDetails(q, r);
+        }, 300); // Augmenté à 300ms
+      });
+
+      layer.on('mouseout', function() {
+        if (this !== selectedSquare) {
+          this.setStyle({ 
+            fillOpacity: 0.1, 
+            weight: 0.5,
+            opacity: 0.3
+          });
+        }
+      });
+
+      layer.on('click', function(e) {
+        L.DomEvent.stopPropagation(e);
+        highlightSquare(this);
+        loadCellDetails(q, r, false);
+      });
+
+      // Tooltip uniquement sur zoom élevé
+      if (currentZoom >= 4) {
+        layer.bindTooltip(`Cell (${q}, ${r})`, { 
+          permanent: false, 
+          direction: 'top',
+          opacity: 0.8
+        });
+      }
+    }
+
+    // Initialiser la carte
+    function initMap() {
+      map = L.map('map', {
+        preferCanvas: true, // Utiliser Canvas pour de meilleures performances
+        zoomControl: true
+      }).setView([0, 0], 2);
+      
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 18
+      }).addTo(map);
+
+      // Générer la grille (mise en cache)
+      console.log('Génération de la grille mondiale...');
+      const gridData = generateWorldSquareGrid(CELL_SIZE);
+      console.log(`Grille générée: ${gridData.features.length} cellules`);
+
+      // Afficher la grille visible
+      updateVisibleGrid();
+      
+      // Mettre à jour lors du zoom/pan (avec throttle)
+      let updateTimer;
+      map.on('moveend zoomend', function() {
+        clearTimeout(updateTimer);
+        updateTimer = setTimeout(updateVisibleGrid, 200);
+      });
+    }
+
+    // Mettre en surbrillance la cellule sélectionnée
+    function highlightSquare(polygon) {
+      if (selectedSquare) {
+        selectedSquare.setStyle({
+          fillOpacity: 0.1,
+          weight: 0.5,
+          opacity: 0.3
+        });
+      }
+
+      polygon.setStyle({
+        fillOpacity: 0.6,
+        weight: 2,
+        color: '#ffd700',
+        opacity: 1
+      });
+
+      selectedSquare = polygon;
+    }
+
+    // Charger les détails d'une cellule (avec cache)
+    async function loadCellDetails(q, r, centerMap = false) {
+      const detailsDiv = document.getElementById('cellDetails');
+      
+      // Vérifier le cache
+      const cacheKey = `${q},${r}`;
+      if (lastLoadedData && lastLoadedData.key === cacheKey && !centerMap) {
+        displayCellDetails(lastLoadedData.data, centerMap);
+        return;
+      }
+      
+      try {
+        const response = await fetch(`${API_URL}/cell/grid/${q}/${r}`);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        // Mettre en cache
+        lastLoadedData = { key: cacheKey, data };
+        
+        displayCellDetails(data, centerMap);
+
+      } catch (error) {
+        console.error('Erreur:', error);
+        detailsDiv.innerHTML = `
+          <div class="empty-state">
+            <p style="color: #999;">❌ Aucune donnée disponible pour cette cellule</p>
+            <p style="font-size: 12px; margin-top: 10px;">Coordonnées: (${q}, ${r})</p>
+          </div>
+        `;
+      }
+    }
+
+    // Afficher les détails (avec bouton de centrage)
+    function displayCellDetails(data, centerMap = false) {
+      const detailsDiv = document.getElementById('cellDetails');
+      
+      // Centrer si demandé
+      if (centerMap && data.position.actual) {
+        map.setView([data.position.actual.lat, data.position.actual.lon], 5);
+      }
+      
+      // Préparer les ressources
+      let resourcesHTML = '';
+      if (data.resources && Object.keys(data.resources).length > 0) {
+        resourcesHTML = Object.entries(data.resources)
+          .map(([resource, info]) => {
+            const value = info.abundance === 'high' ? 80 : info.abundance === 'medium' ? 50 : 20;
+            return `
+              <div class="resource-bar">
+                <div class="resource-name">
+                  <span>${capitalizeFirst(resource)}</span>
+                  <span>${info.abundance} (Q: ${info.quality || 'N/A'})</span>
+                </div>
+                <div class="resource-progress">
+                  <div class="resource-fill" style="width: ${value}%"></div>
+                </div>
+              </div>
+            `;
+          }).join('');
+      } else {
+        resourcesHTML = '<p style="color: #999;">Aucune ressource disponible</p>';
+      }
+
+      // Préparer les données météo
+      let weatherHTML = '';
+      if (data.data) {
+        const weatherVars = {
+          't2m': { label: 'Température', unit: 'K', icon: '🌡️' },
+          'tp': { label: 'Précipitations', unit: 'mm', icon: '🌧️' },
+          'ssr': { label: 'Radiation', unit: 'W/m²', icon: '☀️' },
+          'msl': { label: 'Pression', unit: 'Pa', icon: '🌪️' }
+        };
+
+        weatherHTML = '<div class="weather-grid">';
+        for (const [key, info] of Object.entries(weatherVars)) {
+          if (data.data[key] && data.data[key].mean !== undefined) {
+            weatherHTML += `
+              <div class="weather-item">
+                <div class="label">${info.icon} ${info.label}</div>
+                <div class="value">${data.data[key].mean.toFixed(2)}</div>
+                <div class="label">${info.unit}</div>
+              </div>
+            `;
+          }
+        }
+        weatherHTML += '</div>';
+      }
+
+      // Bouton de centrage
+      const centerButton = `
+        <button onclick="map.setView([${data.position.actual.lat}, ${data.position.actual.lon}], 6)" 
+                style="width: 100%; margin: 15px 0; padding: 10px 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; transition: transform 0.2s;"
+                onmouseover="this.style.transform='scale(1.02)'"
+                onmouseout="this.style.transform='scale(1)'">
+          📍 Centrer la carte sur cette cellule
+        </button>
+      `;
+
+      detailsDiv.innerHTML = `
+        <div class="info-section">
+          <h3>🌍 Informations Générales</h3>
+          <div class="info-item">
+            <span class="info-label">Coordonnées Grille</span>
+            <span class="info-value">(${data.gridCoords.q}, ${data.gridCoords.r})</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Latitude</span>
+            <span class="info-value">${data.position.actual.lat.toFixed(4)}°</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Longitude</span>
+            <span class="info-value">${data.position.actual.lon.toFixed(4)}°</span>
+          </div>
+          ${data.metadata ? `
+          <div class="info-item">
+            <span class="info-label">Distance données</span>
+            <span class="info-value">${data.metadata.distance}°</span>
+          </div>
+          ` : ''}
+          ${centerButton}
+        </div>
+
+        <div class="info-section">
+          <h3>🏔️ Biome</h3>
+          <div style="margin: 15px 0;">
+            <span class="biome-badge">${capitalizeFirst(data.biome)}</span>
+          </div>
+        </div>
+
+        <div class="info-section">
+          <h3>⛏️ Ressources Disponibles</h3>
+          ${resourcesHTML}
+        </div>
+
+        ${weatherHTML ? `
+        <div class="info-section">
+          <h3>🌤️ Données Climatiques</h3>
+          ${weatherHTML}
+        </div>
+        ` : ''}
+      `;
+    }
+
+    // Utilitaire: capitaliser
+    function capitalizeFirst(str) {
+      if (!str) return 'Inconnu';
+      return str.charAt(0).toUpperCase() + str.slice(1).replace(/_/g, ' ');
+    }
+
+    // Initialiser au chargement
+    window.addEventListener('load', () => {
+      console.log('Initialisation de la carte...');
+      initMap();
+      
+      // Vérifier la connexion API
+      fetch(`${API_URL}/health`)
+        .then(r => r.json())
+        .then(data => {
+          console.log('✅ API connectée:', data);
+        })
+        .catch(err => {
+          console.error('❌ API non disponible:', err);
+          alert('⚠️ Le serveur API ne répond pas. Assurez-vous que "node server.js" est lancé.');
+        });
+    });
+  </script>
+</body>
+</html>
