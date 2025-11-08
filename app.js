@@ -11,42 +11,83 @@ const app = Fastify();
 
 app.get("/", (req, reply) => {
   reply.type("text/html").send(`
-    <!DOCTYPE html>
-    <html>
-      <body>
-        <button id="connect">Connexion socket</button>
-        <button id="create">Créer game</button>
-        <pre id="log"></pre>
+<!DOCTYPE html>
+<html>
+  <body>
+    <p id="log"></p>
+    <button id="connect">Connexion socket</button>
+    <button id="create" disabled>Créer game</button>
+    <button id="join" disabled>Rejoindre game</button>
+    <button id="creer-batiment" disabled>Créer batiment</button>
+    <button id="start-game" disabled>Start</button>
 
-        <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-        <script>
-          let socket = null;
-          const log = (x) => {
-            document.getElementById("log").textContent += x + "\\n";
-          };
+    <h3>Games</h3>
+    <ul id="games"></ul>
 
-          document.getElementById("connect").onclick = () => {
-            socket = io("http://localhost:5742", { auth: { token: null } });
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script>
+      let socket = null;
+      let token = localStorage.getItem("token");
 
-            socket.on("connect", () => log("connect: " + socket.id));
-            socket.on("games:list", (x) => log("games:list → " + JSON.stringify(x)));
-            socket.on("game:update", (x) => log("game:update → " + JSON.stringify(x)));
-            socket.on("disconnect", () => log("disconnect"));
-          };
+      socket = io("http://localhost:5742", { auth: { token } });
 
-          document.getElementById("create").onclick = () => {
-            if (!socket) return;
-            socket.emit("game:create");
-            log("emit game:create");
-          };
-        </script>
-      </body>
-    </html>
+      socket.on("connect", () => {
+        document.getElementById("create").disabled = false;
+      });
+
+      socket.on("session:token", (newToken) => {
+        token = newToken;
+        localStorage.setItem("token", token);
+      });
+
+      const gamesUl = document.getElementById("games");
+
+      function renderGames(list) {
+  gamesUl.innerHTML = "";
+  list.forEach((g) => {
+    const li = document.createElement("li");
+
+    const btn = document.createElement("button");
+    btn.textContent = g.id;
+    btn.onclick = () => {
+      console.log(g.id);
+      socket.emit("game:join", {gameId : g.id, name : "Aizik le goat"});
+    };
+
+    li.appendChild(btn);
+    gamesUl.appendChild(li);
+  });
+}
+      socket.on("games:list", (data) => {
+        renderGames(data);
+      });
+
+      socket.on("game:update", (data) => {
+        console.log(data)
+        document.getElementById("creer-batiment").disabled = false;
+        document.getElementById("start-game").disabled = false;
+      });
+
+      document.getElementById("create").onclick = () => {
+        socket.emit("game:create");
+      };
+
+      document.getElementById("creer-batiment").onclick = () => {
+        socket.emit("batiment:build", {coords : "15,-30", type:"hdv"});
+      };
+
+      document.getElementById("start-game").onclick = () => {
+        socket.emit("game:start");
+      };
+    </script>
+  </body>
+</html>
+
   `);
 });
 
 
-await app.listen({ port: 5742, host: '0.0.0.0' });
+await app.listen({ port: 5742, host: '127.0.0.1' });
 
 const io = new IOServer(app.server, {
   cors: { origin: true, methods: ['GET','POST'] }

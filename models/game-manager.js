@@ -8,7 +8,7 @@ export class GameManager {
     this.games = new Map();
   }
 
-  create() {
+  createGame() {
     const id = newId('game');
     const g = new Game(id);
     this.games.set(id, g);
