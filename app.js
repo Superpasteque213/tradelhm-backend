@@ -30,7 +30,7 @@ app.get("/", (req, reply) => {
       let socket = null;
       let token = localStorage.getItem("token");
 
-      socket = io("http://localhost:5742", { auth: { token } });
+      socket = io("http://${process.env.host}:${process.env.port}", { auth: { token } });
 
       socket.on("connect", () => {
         document.getElementById("create").disabled = false;
