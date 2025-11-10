@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "backend du projet tradehelm",
   "main": "app.js",
-  "type" : "module",
+  "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "api-fetch": "node sentinel_data_fetch.js",
@@ -21,6 +21,7 @@
   "homepage": "https://github.com/Superpasteque213/tradelhm-backend#readme",
   "dependencies": {
     "@fastify/cors": "^11.1.0",
+    "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "fastify": "^5.6.1",
     "ioredis": "^5.8.2",

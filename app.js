@@ -5,6 +5,7 @@ import Redis from 'ioredis';           // si tu l'utilises
 import crypto from 'node:crypto';      // si tu l'utilises
 import { NetworkManager } from './network/NetworkManager.js';
 import { GameManager }  from './models/game-manager.js';
+import 'dotenv/config';
 
 const app = Fastify();
 
@@ -29,7 +30,9 @@ app.get("/", (req, reply) => {
       let socket = null;
       let token = localStorage.getItem("token");
 
-      socket = io("http://localhost:5742", { auth: { token } });
+      console.log(token)
+
+      socket = io("http://${process.env.host}:${process.env.port}", { auth: { token } });
 
       socket.on("connect", () => {
         document.getElementById("create").disabled = false;
@@ -72,8 +75,8 @@ app.get("/", (req, reply) => {
         socket.emit("game:create");
       };
 
-      document.getElementById("creer-batiment").onclick = () => {
-        socket.emit("batiment:build", {coords : "15,-30", type:"hdv"});
+      document.getElementById("creer-batiment").onclick = (coords = "5,5") => {
+        socket.emit("batiment:build", {coords , type:"hdv"});
       };
 
       document.getElementById("start-game").onclick = () => {
@@ -87,7 +90,7 @@ app.get("/", (req, reply) => {
 });
 
 
-await app.listen({ port: 5742, host: '127.0.0.1' });
+app.listen({ port: process.env.port, host: process.env.sortie });
 
 const io = new IOServer(app.server, {
   cors: { origin: true, methods: ['GET','POST'] }
@@ -103,4 +106,4 @@ networkManager.start();
 
 
 
-console.log('http://localhost:5742');
+console.log('http://'+process.env.host+":"+process.env.port);
